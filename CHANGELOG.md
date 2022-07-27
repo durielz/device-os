@@ -1,3 +1,7 @@
+## 4.0.2
+
+Fake forward release with bootloader bump
+
 ## 4.0.0-beta.1
 
 > ## :warning: Please note this is an internal release, do not use on production devices!
