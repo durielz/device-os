@@ -1,3 +1,9 @@
+## 5.0.2
+
+### FEATURES
+
+- Fake version of 5.0.2 with bootloader bump to test forward OTA updates
+
 ## 5.0.0
 
 ### BREAKING CHANGE
