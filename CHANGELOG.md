@@ -1,3 +1,9 @@
+## 5.0.1
+
+### FEATURES
+
+- Fake version of 5.0.1 to test forward OTA updates
+
 ## 5.0.0
 
 ### BREAKING CHANGE
