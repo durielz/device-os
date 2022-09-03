@@ -1,3 +1,9 @@
+## 5.0.98
+
+### FEATURES
+
+- Fake version of 5.0.98 with bootloader bump to test forward OTA updates from 5.0.1
+
 ## 5.0.1
 
 ### FEATURES
