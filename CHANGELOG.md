@@ -1,3 +1,7 @@
+## 5.1.2
+
+- Fake version of 5.1.0 with bootloader bump to test forward OTA updates
+
 ## 5.1.0
 
 ### FEATURES
