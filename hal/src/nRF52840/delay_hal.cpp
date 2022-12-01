@@ -42,6 +42,6 @@ void HAL_Delay_Microseconds(uint32_t uSec)
 
     while((DWT->CYCCNT - DWT_START) < DWT_TOTAL)
     {
-        HAL_Notify_WDT();
+        hal_watchdog_kick();
     }
 }

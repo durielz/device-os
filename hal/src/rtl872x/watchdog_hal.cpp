@@ -18,20 +18,42 @@
  */
 
 #include "watchdog_hal.h"
+
+#if HAL_PLATFORM_HW_WATCHDOG
+#include "check.h"
 #include "logging.h"
 
+int hal_watchdog_set_config(const hal_watchdog_config_t* config, void* reserved) {
+    return SYSTEM_ERROR_NONE;
+}
+
+int hal_watchdog_set_timeout(uint32_t timeout, void* reserved) {
+    return SYSTEM_ERROR_NONE;
+}
+
+int hal_watchdog_on_expired_callback(hal_watchdog_on_expired_callback_t callback, void* context, void* reserved) {
+    return SYSTEM_ERROR_NONE;
+}
+
+int hal_watchdog_start(void* reserved) {
+    return SYSTEM_ERROR_NONE;
+}
+
+int hal_watchdog_stop(void* reserved) {
+    return SYSTEM_ERROR_NONE;
+}
+
+void hal_watchdog_kick() {
+
+}
+
+int hal_watchdog_get_info(hal_watchdog_info_t* info, void* reserved) {
+    return SYSTEM_ERROR_NONE;
+}
+
 // backward compatibility for nRF52
-bool HAL_watchdog_reset_flagged(void) 
-{
+bool hal_watchdog_reset_flagged_deprecated(void) {
     return false;
 }
 
-void HAL_Notify_WDT()
-{
-
-}
-
-void HAL_Watchdog_Init(uint32_t timeout_tick_ms)
-{
-
-}
+#endif // HAL_PLATFORM_HW_WATCHDOG

@@ -22,11 +22,11 @@
 #include <chrono>
 
 #include "spark_wiring_thread.h"
+#include "spark_wiring_platform.h"
 #include "delay_hal.h"
 #include "timer_hal.h"
 
 #if PLATFORM_THREADING
-
 
 class ApplicationWatchdog
 {
@@ -108,5 +108,64 @@ inline void application_checkin() { ApplicationWatchdog::checkin(); }
 
 inline void application_checkin() {  }
 
-#endif
+#endif // PLATFORM_THREADING
+
+
+#if Wiring_Watchdog
+
+#include "watchdog_hal.h"
+
+namespace particle {
+
+enum class WatchdogCaps : uint32_t {
+    NONE            = WATCHDOG_CAPS_NONE,
+    RESET           = WATCHDOG_CAPS_RESET,
+    INT             = WATCHDOG_CAPS_INT,
+    RECONFIGURABLE  = WATCHDOG_CAPS_RECONFIGURABLE,
+    STOPPABLE       = WATCHDOG_CAPS_STOPPABLE,
+    ALL             = WATCHDOG_CAPS_ALL
+};
+
+typedef std::function<void(void)> WatchdogOnExpiredStdFunction;
+typedef void (*WatchdogOnExpiredCallback)(void);
+
+class WatchdogConfiguration : public hal_watchdog_config_t {
+};
+
+class WatchdogInfo : public hal_watchdog_info_t {
+};
+
+class WatchdogClass {
+public:
+    int init(const WatchdogConfiguration& config);
+    int setTimeout(system_tick_t timeout);
+    int start();
+    int stop();
+    int kick();
+    int getInfo(WatchdogInfo& info);
+
+    int onExpired(WatchdogOnExpiredCallback callback, void* context = nullptr);
+    int onExpired(const WatchdogOnExpiredStdFunction& callback);
+    template<typename T>
+    void onExpired(void(T::*callback)(void), T* instance) const {
+        return onExpired((callback && instance) ? std::bind(callback, instance) : (WatchdogOnExpiredStdFunction)nullptr);
+    }
+
+    WatchdogClass& getInstance() {
+        static WatchdogClass watchdog;
+        return watchdog;
+    }
+
+private:
+    WatchdogClass() = default;
+    ~WatchdogClass() = default;
+
+    static void onWatchdogExpiredCallback(void);
+
+    WatchdogOnExpiredStdFunction callback_;
+};
+
+} // namespace particle
+
+#endif // Wiring_Watchdog
 

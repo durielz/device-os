@@ -25,6 +25,7 @@
 #define	HAL_DYNALIB_CORE_H
 
 #include "dynalib.h"
+#include "hal_platform.h"
 
 #ifdef DYNALIB_EXPORT
 #include "core_hal.h"
@@ -59,8 +60,8 @@ DYNALIB_FN(13, hal_core, hal_get_device_id, unsigned(uint8_t*, unsigned))
 
 DYNALIB_FN(14, hal_core, HAL_Get_Sys_Health, eSystemHealth(void))
 DYNALIB_FN(15, hal_core, HAL_Set_Sys_Health, void(eSystemHealth))
-DYNALIB_FN(16, hal_core, HAL_watchdog_reset_flagged, bool(void))
-DYNALIB_FN(17, hal_core, HAL_Notify_WDT, void(void))
+DYNALIB_FN(16, hal_core, hal_watchdog_reset_flagged_deprecated, bool(void))
+DYNALIB_FN(17, hal_core, hal_watchdog_kick, void(void))
 DYNALIB_FN(18, hal_core, HAL_Bootloader_Get_Flag, uint16_t(BootloaderFlag))
 DYNALIB_FN(19, hal_core, HAL_Bootloader_Lock, void(bool))
 DYNALIB_FN(20, hal_core, HAL_Core_System_Reset_FlagSet, bool(RESET_TypeDef))
@@ -89,6 +90,23 @@ DYNALIB_FN(39, hal_core, hal_get_device_serial_number, int(char*, size_t, void*)
 DYNALIB_FN(40, hal_core, hal_get_device_secret, int(char*, size_t, void*))
 DYNALIB_FN(41, hal_core, hal_set_device_secret, int(char*, size_t, void*))
 DYNALIB_FN(42, hal_core, hal_get_device_hw_info, int(hal_device_hw_info*, void*))
+
+#define BASE_IDX 43
+
+#if HAL_PLATFORM_HW_WATCHDOG
+DYNALIB_FN(BASE_IDX + 0, hal_core, hal_watchdog_set_config, int(const hal_watchdog_config_t*, void*))
+DYNALIB_FN(BASE_IDX + 1, hal_core, hal_watchdog_set_timeout, int(uint32_t, void*))
+DYNALIB_FN(BASE_IDX + 2, hal_core, hal_watchdog_on_expired_callback, int(hal_watchdog_on_expired_callback_t, void*, void*))
+DYNALIB_FN(BASE_IDX + 3, hal_core, hal_watchdog_start, int(void*))
+DYNALIB_FN(BASE_IDX + 4, hal_core, hal_watchdog_stop, int(void*))
+DYNALIB_FN(BASE_IDX + 5, hal_core, hal_watchdog_get_info, int(hal_watchdog_info_t*, void*))
+#define BASE_IDX1 (BASE_IDX+6)
+#else
+#define BASE_IDX1 (BASE_IDX+0)
+#endif // HAL_PLATFORM_HW_WATCHDOG
+
+#undef BASE_IDX
+#undef BASE_IDX1
 
 DYNALIB_END(hal_core)
 

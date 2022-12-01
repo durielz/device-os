@@ -433,6 +433,6 @@ void IWDG_Reset_Enable(uint32_t msTimeout)
         }
 
         // FIXME: DON'T enable watchdog temporarily
-        // HAL_Watchdog_Init(msTimeout);
+        // hal_watchdog_start(msTimeout);
     }
 }

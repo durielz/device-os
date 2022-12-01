@@ -395,7 +395,7 @@ extern "C" void HAL_SysTick_Handler(void)
         TimingIWDGReload = 0;
 
         /* Reload WDG counter */
-        HAL_Notify_WDT();
+        hal_watchdog_kick();
         DECLARE_SYS_HEALTH(CLEARED_WATCHDOG);
     }
     else

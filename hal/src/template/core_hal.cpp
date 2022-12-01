@@ -109,14 +109,44 @@ uint32_t HAL_Core_Compute_CRC32(const uint8_t *pBuffer, uint32_t bufferSize)
     return 0;
 }
 
+int hal_watchdog_set_config(const hal_watchdog_config_t* config, void* reserved)
+{
+    return 0;
+}
+
+int hal_watchdog_set_timeout(uint32_t timeout, void* reserved)
+{
+    return 0;
+}
+
+int hal_watchdog_on_expired_callback(hal_watchdog_on_expired_callback_t callback, void* context, void* reserved)
+{
+    return 0;
+}
+
+int hal_watchdog_start(void* reserved)
+{
+    return 0;
+}
+
+int hal_watchdog_stop(void* reserved)
+{
+    return 0;
+}
+
+int hal_watchdog_get_info(int idx, hal_watchdog_info_t* info, void* reserved)
+{
+    return 0;
+}
+
 // todo find a technique that allows accessor functions to be inlined while still keeping
 // hardware independence.
-bool HAL_watchdog_reset_flagged()
+bool hal_watchdog_reset_flagged_deprecated()
 {
     return false;
 }
 
-void HAL_Notify_WDT()
+void hal_watchdog_kick()
 {
 }
 
