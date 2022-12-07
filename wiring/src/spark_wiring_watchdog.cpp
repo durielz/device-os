@@ -41,7 +41,7 @@ int WatchdogClass::stop() {
     return SYSTEM_ERROR_NONE;
 }
 
-int WatchdogClass::kick() {
+int WatchdogClass::refresh() {
     return SYSTEM_ERROR_NONE;
 }
 
@@ -50,15 +50,20 @@ int WatchdogClass::getInfo(WatchdogInfo& info) {
 }
 
 int WatchdogClass::onExpired(WatchdogOnExpiredCallback callback, void* context) {
+    callback_ = callback ? std::bind(callback, context) : (WatchdogOnExpiredStdFunction)nullptr;
     return SYSTEM_ERROR_NONE;
 }
 
 int WatchdogClass::onExpired(const WatchdogOnExpiredStdFunction& callback) {
+    callback_ = callback;
     return SYSTEM_ERROR_NONE;
 }
 
-void WatchdogClass::onWatchdogExpiredCallback(void) {
-    
+void WatchdogClass::onWatchdogExpiredCallback(void* context) {
+    auto instance = reinterpret_cast<WatchdogClass*>(context);
+    if (instance->callback_) {
+        instance->callback_();
+    }
 }
 
 } /* namespace particle */

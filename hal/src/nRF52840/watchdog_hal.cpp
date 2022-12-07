@@ -1,6 +1,5 @@
 /*
- ******************************************************************************
- *  Copyright (c) 2015 Particle Industries, Inc.  All rights reserved.
+ * Copyright (c) 2022 Particle Industries, Inc.  All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -14,7 +13,6 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
- ******************************************************************************
  */
 
 #include "watchdog_hal.h"
@@ -35,7 +33,7 @@ static volatile bool watch_dog_initialized = false;
     //NOTE: The max amount of time we can spend in WDT interrupt is two cycles of 32768[Hz] clock - after that, reset occurs
 // }
 
-int hal_watchdog_set_config(const hal_watchdog_config_t* config, void* reserved) {
+int hal_watchdog_set_config(hal_watchdog_instance_t instance, const hal_watchdog_config_t* config, void* reserved) {
     // uint32_t ret_code;
 
     //Configure WDT.
@@ -58,35 +56,42 @@ int hal_watchdog_set_config(const hal_watchdog_config_t* config, void* reserved)
     return SYSTEM_ERROR_NONE;
 }
 
-int hal_watchdog_set_timeout(uint32_t timeout, void* reserved) {
+int hal_watchdog_set_timeout(hal_watchdog_instance_t instance, uint32_t timeout, void* reserved) {
     return SYSTEM_ERROR_NONE;
 }
 
-int hal_watchdog_on_expired_callback(hal_watchdog_on_expired_callback_t callback, void* context, void* reserved) {
+int hal_watchdog_on_expired_callback(hal_watchdog_instance_t instance, hal_watchdog_on_expired_callback_t callback, void* context, void* reserved) {
     return SYSTEM_ERROR_NONE;
 }
 
-int hal_watchdog_start(void* reserved) {
+int hal_watchdog_start(hal_watchdog_instance_t instance, void* reserved) {
     return SYSTEM_ERROR_NONE;
 }
 
-int hal_watchdog_stop(void* reserved) {
+int hal_watchdog_stop(hal_watchdog_instance_t instance, void* reserved) {
     return SYSTEM_ERROR_NONE;
 }
 
-void hal_watchdog_kick() {
+int hal_watchdog_refresh(hal_watchdog_instance_t instance, void* reserved) {
     if (watch_dog_initialized) {
         nrfx_wdt_channel_feed(m_channel_id);
     }
+    return SYSTEM_ERROR_NONE;
 }
 
-int hal_watchdog_get_info(hal_watchdog_info_t* info, void* reserved) {
+int hal_watchdog_get_info(hal_watchdog_instance_t instance, hal_watchdog_info_t* info, void* reserved) {
     return SYSTEM_ERROR_NONE;
 }
 
 // backward compatibility for nRF52
 bool hal_watchdog_reset_flagged_deprecated(void) {
     return false;
+}
+
+void hal_watchdog_refresh_deprecated() {
+    if (watch_dog_initialized) {
+        nrfx_wdt_channel_feed(m_channel_id);
+    }
 }
 
 #endif // HAL_PLATFORM_HW_WATCHDOG

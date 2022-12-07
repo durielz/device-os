@@ -42,6 +42,6 @@ void HAL_Delay_Microseconds(uint32_t uSec)
 
     while((DWT->CYCCNT - DWT_START) < DWT_TOTAL)
     {
-        hal_watchdog_kick();
+        hal_watchdog_refresh_deprecated();
     }
 }
