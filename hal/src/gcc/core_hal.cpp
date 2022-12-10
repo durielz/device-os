@@ -433,11 +433,6 @@ int hal_watchdog_set_config(hal_watchdog_instance_t instance, const hal_watchdog
     return 0;
 }
 
-int hal_watchdog_set_timeout(hal_watchdog_instance_t instance, uint32_t timeout, void* reserved)
-{
-    return 0;
-}
-
 int hal_watchdog_on_expired_callback(hal_watchdog_instance_t instance, hal_watchdog_on_expired_callback_t callback, void* context, void* reserved)
 {
     return 0;

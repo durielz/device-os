@@ -28,13 +28,18 @@ test(watchdog_caps) {
     });
 }
 
+test(watchdog_configuration_class) {
+    API_COMPILE(WatchdogConfiguration().timeout(1234).hardReset(true));
+    API_COMPILE(WatchdogConfiguration().timeout(10s).hardReset(true));
+}
+
 test(watchdog_class) {
     WatchdogConfiguration config = {};
     WatchdogInfo info = {};
 
     API_COMPILE({ int ret = Watchdog.init(config); (void)ret; });
-    API_COMPILE({ int ret = Watchdog.setTimeout(1234); (void)ret; });
     API_COMPILE({ int ret = Watchdog.start(); (void)ret; });
+    API_COMPILE({ bool ret = Watchdog.started(); (void)ret; });
     API_COMPILE({ int ret = Watchdog.stop(); (void)ret; });
     API_COMPILE({ int ret = Watchdog.refresh(); (void)ret; });
     API_COMPILE({ int ret = Watchdog.getInfo(info); (void)ret; });

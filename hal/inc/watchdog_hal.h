@@ -21,10 +21,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "hal_platform.h"
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
+#include "system_tick_hal.h"
 
 #if HAL_PLATFORM_HW_WATCHDOG
 
@@ -49,9 +46,7 @@ typedef enum hal_watchdog_capability_t {
 typedef struct hal_watchdog_config_t {
     uint16_t                            size;
     uint16_t                            version;
-    uint32_t                            timeout_ms;
-    hal_watchdog_on_expired_callback_t  callback;
-    void*                               context;
+    system_tick_t                       timeout_ms;
     uint8_t                             hard_reset;
     uint8_t                             reserved[3];
 } hal_watchdog_config_t;
@@ -59,16 +54,76 @@ typedef struct hal_watchdog_config_t {
 typedef struct hal_watchdog_info_t {
     uint16_t                    size;
     uint16_t                    version;
-    hal_watchdog_capability_t   capabilities;
-    uint32_t                    period_ms;
-    uint32_t                    min_timeout_ms;
-    uint32_t                    max_timeout_ms;
+    uint32_t                    capabilities;
+    system_tick_t               timeout_ms;
+    system_tick_t               min_timeout_ms;
+    system_tick_t               max_timeout_ms;
     uint8_t                     running;
     uint8_t                     reserved[3];
 } hal_watchdog_info_t;
 
+#ifdef __cplusplus
+#include <algorithm>
+#include "check.h"
+class Watchdog {
+public:
+    Watchdog(uint32_t capabilities, uint32_t minTimeout, uint32_t maxTimeout)
+            : config_{},
+              info_{} {
+        config_.size = sizeof(hal_watchdog_config_t);
+        config_.version = HAL_WATCHDOG_VERSION;
+
+        info_.size = sizeof(hal_watchdog_info_t);
+        info_.version = HAL_WATCHDOG_VERSION;
+        info_.capabilities = capabilities;
+        info_.min_timeout_ms = minTimeout;
+        info_.max_timeout_ms = maxTimeout;
+        info_.running = false;
+    }
+
+    Watchdog() = default;
+
+    void notify() {
+        if (callback_) {
+            callback_(context_);
+        }
+    }
+
+    virtual bool started() { 
+        return info_.running;
+    }
+
+    virtual int stop() {
+        return SYSTEM_ERROR_NOT_SUPPORTED;
+    }
+    
+    virtual int getInfo(hal_watchdog_info_t* info) {
+        CHECK_TRUE(info && (info->size > 0), SYSTEM_ERROR_INVALID_ARGUMENT);
+        memcpy(info, &info_, std::min(info->size, info_.size));
+        return SYSTEM_ERROR_NONE;
+    }
+
+    virtual int setOnExpiredCallback(hal_watchdog_on_expired_callback_t callback, void* context) {
+        return SYSTEM_ERROR_NOT_SUPPORTED;
+    }
+
+    virtual int init(const hal_watchdog_config_t* config) = 0;
+    virtual int start() = 0;
+    virtual int refresh() = 0;
+
+    hal_watchdog_config_t config_;
+    hal_watchdog_info_t info_;
+    hal_watchdog_on_expired_callback_t callback_;
+    void* context_;
+
+};
+#endif // __cplusplus
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 int hal_watchdog_set_config(hal_watchdog_instance_t instance, const hal_watchdog_config_t* config, void* reserved);
-int hal_watchdog_set_timeout(hal_watchdog_instance_t instance, uint32_t timeout, void* reserved);
 int hal_watchdog_on_expired_callback(hal_watchdog_instance_t instance, hal_watchdog_on_expired_callback_t callback, void* context, void* reserved);
 int hal_watchdog_start(hal_watchdog_instance_t instance, void* reserved);
 int hal_watchdog_stop(hal_watchdog_instance_t instance, void* reserved);
@@ -79,11 +134,11 @@ int hal_watchdog_get_info(hal_watchdog_instance_t instance, hal_watchdog_info_t*
 bool hal_watchdog_reset_flagged_deprecated();
 void hal_watchdog_refresh_deprecated(void);
 
-#endif // HAL_PLATFORM_HW_WATCHDOG
-
 #ifdef	__cplusplus
 }
 #endif
+
+#endif // HAL_PLATFORM_HW_WATCHDOG
 
 #endif	/* WATCHDOG_HAL_H */
 

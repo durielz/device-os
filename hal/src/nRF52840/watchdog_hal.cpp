@@ -21,77 +21,184 @@
 #include "check.h"
 #include "nrfx_wdt.h"
 #include "logging.h"
+#include "static_recursive_mutex.h"
 
-static nrfx_wdt_channel_id m_channel_id;
-static volatile bool watch_dog_initialized = false;
+static Watchdog* getWatchdogInstance(hal_watchdog_instance_t instance);
+
+class WatchdogLock {
+public:
+    WatchdogLock() {
+        mutex_.lock();
+    }
+
+    ~WatchdogLock() {
+        mutex_.unlock();
+    }
+
+private:
+    StaticRecursiveMutex mutex_;
+};
 
 /**
- * @brief WDT events handler.
+ * @brief The watchdog reset behavior is the same as the pin reset behavior.
+ * The following resources will be reset due to watchdog reset:
+ *  - CPU
+ *  - Peripherals
+ *  - GPIO
+ *  - Debug
+ *  - RAM
+ *  - WDT
+ *  - Retained registers
+ * 
+ * The watchdog will be reset by the following reset sources:
+ *  - Watchdog reset
+ *  - Pin reset
+ *  - Brownout reset
+ *  - Power on reset
+ * 
+ * @note When the device starts running again, after a reset, or waking up from OFF mode,
+ * the watchdog configuration registers will be available for configuration again.
  */
-// static void wdt_event_handler(void)
-// {
-    //NOTE: The max amount of time we can spend in WDT interrupt is two cycles of 32768[Hz] clock - after that, reset occurs
-// }
+class Nrf52Watchdog : public Watchdog {
+public:
+    int init(const hal_watchdog_config_t* config) {
+        CHECK_FALSE(initialized_, SYSTEM_ERROR_INVALID_STATE);
+        CHECK_TRUE(config && (config->size > 0), SYSTEM_ERROR_INVALID_ARGUMENT);
 
-int hal_watchdog_set_config(hal_watchdog_instance_t instance, const hal_watchdog_config_t* config, void* reserved) {
-    // uint32_t ret_code;
+        nrfx_wdt_config_t nrfConfig = {
+            .behaviour          = NRF_WDT_BEHAVIOUR_PAUSE_SLEEP_HALT, // WDT will be paused when CPU is in SLEEP or HALT mode.
+            .reload_value       = config->timeout_ms,
+            .interrupt_priority = NRF52_WATCHDOG_PRIORITY,
+        };
+        nrfx_err_t ret = nrfx_wdt_init(&nrfConfig, nrf52WatchdogEventHandler);
+        SPARK_ASSERT(ret == NRF_SUCCESS);
+        ret = nrfx_wdt_channel_alloc(&channelId_);
+        SPARK_ASSERT(ret == NRF_SUCCESS);
 
-    //Configure WDT.
-    // nrfx_wdt_config_t config = {
-    //     .behaviour          = (nrf_wdt_behaviour_t)NRFX_WDT_CONFIG_BEHAVIOUR,
-    //     .reload_value       = timeout_tick_ms,
-    //     .interrupt_priority = NRFX_WDT_CONFIG_IRQ_PRIORITY,
-    // };
+        memcpy(&config_, config, std::min(config_.size, config->size));
+        initialized_ = true;
+        return SYSTEM_ERROR_NONE;
+    }
 
-    // if (watch_dog_initialized == false)
-    // {
-    //     ret_code = nrfx_wdt_init(&config, wdt_event_handler);
-    //     SPARK_ASSERT(ret_code == NRF_SUCCESS);
-    //     ret_code = nrfx_wdt_channel_alloc(&m_channel_id);
-    //     SPARK_ASSERT(ret_code == NRF_SUCCESS);
-    //     nrfx_wdt_enable();
-    //     watch_dog_initialized = true;
-    // }
+    int start() {
+        CHECK_TRUE(initialized_, SYSTEM_ERROR_INVALID_STATE);
+        CHECK_FALSE(started(), SYSTEM_ERROR_NONE);
+        nrfx_wdt_enable();
+        CHECK_TRUE(started(), SYSTEM_ERROR_INTERNAL);
+        return SYSTEM_ERROR_NONE;
+    }
 
-    return SYSTEM_ERROR_NONE;
+    bool started() override {
+        info_.running = nrf_wdt_started();
+        return info_.running;
+    }
+
+    int refresh() {
+        CHECK_TRUE(initialized_, SYSTEM_ERROR_INVALID_STATE);
+        CHECK_TRUE(started(), SYSTEM_ERROR_INVALID_STATE);
+        nrfx_wdt_channel_feed(channelId_);
+        return SYSTEM_ERROR_NONE;
+    }
+
+    int setOnExpiredCallback(hal_watchdog_on_expired_callback_t callback, void* context) override {
+        // NOTE: The max amount of time we can spend in WDT interrupt is two cycles of 32768[Hz] clock - after that, reset occurs
+        callback_ = callback;
+        context_ = context;
+        return SYSTEM_ERROR_NONE;
+    }
+
+    static Nrf52Watchdog* instance() {
+        static Nrf52Watchdog watchdog(WATCHDOG_CAPS_INT, timeoutMs(0), timeoutMs(0xFFFFFFFE));
+        return &watchdog;
+    }
+
+private:
+    Nrf52Watchdog(uint32_t capabilities, uint32_t minTimeout, uint32_t maxTimeout)
+            : Watchdog(capabilities, minTimeout, maxTimeout),
+              initialized_(false) {
+    }
+
+    ~Nrf52Watchdog() = default;
+
+    static uint32_t timeoutMs(uint32_t crv) {
+        return (uint32_t)((crv + 1) / (float)32.768);
+    }
+
+    static void nrf52WatchdogEventHandler() {
+        // NOTE: The max amount of time we can spend in WDT interrupt is two cycles of 32768[Hz] clock - after that, reset occurs
+        auto pInstance = getWatchdogInstance(HAL_WATCHDOG_INSTANCE1);
+        if (!pInstance) {
+            return;
+        }
+        pInstance->notify();
+    }
+
+    volatile bool initialized_;
+    nrfx_wdt_channel_id channelId_;
+    static constexpr uint8_t NRF52_WATCHDOG_PRIORITY = 7;
+};
+
+static Watchdog* getWatchdogInstance(hal_watchdog_instance_t instance) {
+    static Watchdog* watchdog[HAL_PLATFORM_HW_WATCHDOG_COUNT] = {
+        Nrf52Watchdog::instance(),
+        // Add pointer to new watchdog here.
+    };
+    CHECK_TRUE(instance < sizeof(watchdog) / sizeof(watchdog[0]), nullptr);
+    return watchdog[instance];
 }
 
-int hal_watchdog_set_timeout(hal_watchdog_instance_t instance, uint32_t timeout, void* reserved) {
-    return SYSTEM_ERROR_NONE;
+
+/**** Watchdog HAL APIs ****/
+
+int hal_watchdog_set_config(hal_watchdog_instance_t instance, const hal_watchdog_config_t* config, void* reserved) {
+    WatchdogLock lk();
+    auto pInstance = getWatchdogInstance(instance);
+    CHECK_TRUE(pInstance, SYSTEM_ERROR_NOT_FOUND);
+    return pInstance->init(config);
 }
 
 int hal_watchdog_on_expired_callback(hal_watchdog_instance_t instance, hal_watchdog_on_expired_callback_t callback, void* context, void* reserved) {
-    return SYSTEM_ERROR_NONE;
+    WatchdogLock lk();
+    auto pInstance = getWatchdogInstance(instance);
+    CHECK_TRUE(pInstance, SYSTEM_ERROR_NOT_FOUND);
+    return pInstance->setOnExpiredCallback(callback, context);
 }
 
 int hal_watchdog_start(hal_watchdog_instance_t instance, void* reserved) {
-    return SYSTEM_ERROR_NONE;
+    WatchdogLock lk();
+    auto pInstance = getWatchdogInstance(instance);
+    CHECK_TRUE(pInstance, SYSTEM_ERROR_NOT_FOUND);
+    return pInstance->start();
 }
 
 int hal_watchdog_stop(hal_watchdog_instance_t instance, void* reserved) {
-    return SYSTEM_ERROR_NONE;
+    WatchdogLock lk();
+    auto pInstance = getWatchdogInstance(instance);
+    CHECK_TRUE(pInstance, SYSTEM_ERROR_NOT_FOUND);
+    return pInstance->stop();
 }
 
 int hal_watchdog_refresh(hal_watchdog_instance_t instance, void* reserved) {
-    if (watch_dog_initialized) {
-        nrfx_wdt_channel_feed(m_channel_id);
-    }
-    return SYSTEM_ERROR_NONE;
+    WatchdogLock lk();
+    auto pInstance = getWatchdogInstance(instance);
+    CHECK_TRUE(pInstance, SYSTEM_ERROR_NOT_FOUND);
+    return pInstance->refresh();
 }
 
 int hal_watchdog_get_info(hal_watchdog_instance_t instance, hal_watchdog_info_t* info, void* reserved) {
-    return SYSTEM_ERROR_NONE;
+    WatchdogLock lk();
+    auto pInstance = getWatchdogInstance(instance);
+    CHECK_TRUE(pInstance, SYSTEM_ERROR_NOT_FOUND);
+    return pInstance->getInfo(info);
 }
 
-// backward compatibility for nRF52
+// Backward compatibility for nRF52
 bool hal_watchdog_reset_flagged_deprecated(void) {
     return false;
 }
 
 void hal_watchdog_refresh_deprecated() {
-    if (watch_dog_initialized) {
-        nrfx_wdt_channel_feed(m_channel_id);
-    }
+    hal_watchdog_refresh(HAL_WATCHDOG_INSTANCE1, nullptr);
 }
 
 #endif // HAL_PLATFORM_HW_WATCHDOG

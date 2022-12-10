@@ -129,10 +129,53 @@ ENABLE_ENUM_CLASS_BITWISE(WatchdogCaps);
 using WatchdogOnExpiredStdFunction = std::function<void(void)>;
 typedef void (*WatchdogOnExpiredCallback)(void* context);
 
-class WatchdogConfiguration : public hal_watchdog_config_t {
+class WatchdogInfo : public hal_watchdog_info_t {
+public:
+    WatchdogInfo() {
+        this->size = sizeof(hal_watchdog_info_t);
+        this->version = HAL_WATCHDOG_VERSION;
+    }
 };
 
-class WatchdogInfo : public hal_watchdog_info_t {
+class WatchdogConfiguration {
+public:
+    WatchdogConfiguration()
+            : config_() {
+        config_.size = sizeof(hal_watchdog_config_t);
+        config_.version = HAL_WATCHDOG_VERSION;
+        config_.timeout_ms = WATCHDOG_DEFAULT_TIMEOUT_MS;
+        config_.hard_reset = true;
+    }
+
+    ~WatchdogConfiguration() = default;
+
+    WatchdogConfiguration& timeout(system_tick_t ms) {
+        config_.timeout_ms = ms;
+        return *this;
+    }
+
+    WatchdogConfiguration& timeout(std::chrono::milliseconds ms) {
+        return timeout(ms.count());
+    }
+
+    WatchdogConfiguration& hardReset(bool val = true) {
+        config_.hard_reset = val;
+        return *this;
+    }
+
+    const hal_watchdog_config_t* halConfig() const {
+        return &config_;
+    }
+
+    hal_watchdog_instance_t watchdogInstance() const {
+        // TODO: Adjust the instance according to the watchdog configuration.
+        return HAL_WATCHDOG_INSTANCE1;
+    }
+
+private:
+    hal_watchdog_config_t config_;
+
+    static constexpr uint32_t WATCHDOG_DEFAULT_TIMEOUT_MS = 5000;
 };
 
 class WatchdogClass {
@@ -148,23 +191,19 @@ public:
     int init(const WatchdogConfiguration& config);
 
     /**
-     * @brief Set the hardware watchdog timeout. If the watchdog timeout, a callback is invoked if supported.
-     * and device will finally get reset.
-     * 
-     * @note Some hardware watchdog don't support re-configuring once started. @ref WatchdogCaps::RECONFIGURABLE
-     * 
-     * @param[in] timeout The watchdog timeout.
-     * @return SYSTEM_ERROR_NONE if succeeded, otherwise failed.
-     */
-    int setTimeout(system_tick_t timeout);
-
-    /**
      * @brief Start the hardware watchdog. Only if the watchdog is initialized, it can be started. When the
      * watchdog is running, calling this method makes no effect, i.e. it won't refresh the watchdog.
      * 
      * @return SYSTEM_ERROR_NONE if succeeded, otherwise failed.
      */
     int start();
+
+    /**
+     * @brief Check if the watchdog is started.
+     * 
+     * @return true if started, otherwise false.
+     */
+    bool started();
 
     /**
      * @brief Stop the hardware watchdog.
@@ -220,12 +259,21 @@ public:
     }
 
 private:
-    WatchdogClass() = default;
+    WatchdogClass()
+            : callback_(nullptr),
+              instance_(HAL_WATCHDOG_INSTANCE1) {
+    }
     ~WatchdogClass() = default;
 
-    static void onWatchdogExpiredCallback(void* context);
+    static void onWatchdogExpiredCallback(void* context) {
+        auto instance = reinterpret_cast<WatchdogClass*>(context);
+        if (instance->callback_) {
+            instance->callback_();
+        }
+    }
 
     WatchdogOnExpiredStdFunction callback_;
+    hal_watchdog_instance_t instance_;
 };
 
 #define Watchdog WatchdogClass::getInstance()

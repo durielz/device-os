@@ -26,44 +26,53 @@ LOG_SOURCE_CATEGORY("wiring.watchdog")
 namespace particle {
 
 int WatchdogClass::init(const WatchdogConfiguration& config) {
-    return SYSTEM_ERROR_NONE;
-}
-
-int WatchdogClass::setTimeout(system_tick_t timeout) {
-    return SYSTEM_ERROR_NONE;
+    instance_ = config.watchdogInstance();
+    WatchdogInfo info;
+    CHECK(hal_watchdog_get_info(instance_, &info, nullptr));
+    if (static_cast<WatchdogCaps>(info.capabilities) & WatchdogCaps::INT) {
+        CHECK(hal_watchdog_on_expired_callback(instance_, onWatchdogExpiredCallback, this, nullptr));
+    }
+    return hal_watchdog_set_config(instance_, config.halConfig(), nullptr);
 }
 
 int WatchdogClass::start() {
-    return SYSTEM_ERROR_NONE;
+    return hal_watchdog_start(instance_, nullptr);
+}
+
+bool WatchdogClass::started() {
+    WatchdogInfo info;
+    CHECK_RETURN(hal_watchdog_get_info(instance_, &info, nullptr), false);
+    return info.running;
 }
 
 int WatchdogClass::stop() {
-    return SYSTEM_ERROR_NONE;
+    return hal_watchdog_stop(instance_, nullptr);
 }
 
 int WatchdogClass::refresh() {
-    return SYSTEM_ERROR_NONE;
+    return hal_watchdog_refresh(instance_, nullptr);
 }
 
 int WatchdogClass::getInfo(WatchdogInfo& info) {
-    return SYSTEM_ERROR_NONE;
+    return hal_watchdog_get_info(instance_, &info, nullptr);
 }
 
 int WatchdogClass::onExpired(WatchdogOnExpiredCallback callback, void* context) {
-    callback_ = callback ? std::bind(callback, context) : (WatchdogOnExpiredStdFunction)nullptr;
-    return SYSTEM_ERROR_NONE;
+    WatchdogInfo info;
+    CHECK(hal_watchdog_get_info(instance_, &info, nullptr));
+    if (static_cast<WatchdogCaps>(info.capabilities) & WatchdogCaps::INT) {
+        callback_ = callback ? std::bind(callback, context) : (WatchdogOnExpiredStdFunction)nullptr;
+    }
+    return SYSTEM_ERROR_NOT_SUPPORTED;
 }
 
 int WatchdogClass::onExpired(const WatchdogOnExpiredStdFunction& callback) {
-    callback_ = callback;
-    return SYSTEM_ERROR_NONE;
-}
-
-void WatchdogClass::onWatchdogExpiredCallback(void* context) {
-    auto instance = reinterpret_cast<WatchdogClass*>(context);
-    if (instance->callback_) {
-        instance->callback_();
+    WatchdogInfo info;
+    CHECK(hal_watchdog_get_info(instance_, &info, nullptr));
+    if (static_cast<WatchdogCaps>(info.capabilities) & WatchdogCaps::INT) {
+        callback_ = callback;
     }
+    return SYSTEM_ERROR_NOT_SUPPORTED;
 }
 
 } /* namespace particle */
