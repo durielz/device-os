@@ -27,11 +27,6 @@ namespace particle {
 
 int WatchdogClass::init(const WatchdogConfiguration& config) {
     instance_ = config.watchdogInstance();
-    WatchdogInfo info;
-    CHECK(hal_watchdog_get_info(instance_, &info, nullptr));
-    if (static_cast<WatchdogCaps>(info.capabilities) & WatchdogCaps::INT) {
-        CHECK(hal_watchdog_on_expired_callback(instance_, onWatchdogExpiredCallback, this, nullptr));
-    }
     return hal_watchdog_set_config(instance_, config.halConfig(), nullptr);
 }
 
@@ -58,21 +53,14 @@ int WatchdogClass::getInfo(WatchdogInfo& info) {
 }
 
 int WatchdogClass::onExpired(WatchdogOnExpiredCallback callback, void* context) {
-    WatchdogInfo info;
-    CHECK(hal_watchdog_get_info(instance_, &info, nullptr));
-    if (static_cast<WatchdogCaps>(info.capabilities) & WatchdogCaps::INT) {
-        callback_ = callback ? std::bind(callback, context) : (WatchdogOnExpiredStdFunction)nullptr;
-    }
-    return SYSTEM_ERROR_NOT_SUPPORTED;
+    CHECK(hal_watchdog_on_expired_callback(instance_, callback, context, nullptr));
+    return SYSTEM_ERROR_NONE;
 }
 
 int WatchdogClass::onExpired(const WatchdogOnExpiredStdFunction& callback) {
-    WatchdogInfo info;
-    CHECK(hal_watchdog_get_info(instance_, &info, nullptr));
-    if (static_cast<WatchdogCaps>(info.capabilities) & WatchdogCaps::INT) {
-        callback_ = callback;
-    }
-    return SYSTEM_ERROR_NOT_SUPPORTED;
+    CHECK(hal_watchdog_on_expired_callback(instance_, onWatchdogExpiredCallback, this, nullptr));
+    callback_ = callback;
+    return SYSTEM_ERROR_NONE;
 }
 
 } /* namespace particle */

@@ -178,6 +178,14 @@ private:
     static constexpr uint32_t WATCHDOG_DEFAULT_TIMEOUT_MS = 5000;
 };
 
+/**
+ * @note For nRF52-based platforms,
+ *  - the watchdog will be paused during sleep mode and debug mode.
+ *  - When device wakes up from the hibernate mode, the watchdog won't restart automatically.
+ *  - When device wakes up from the ultra-low power mode or stop mode, or restarts after System.reset(),
+ *    the watchdog will continue running if the watchdog has started previously. Use Watchdog.started()
+ *    to check the status of watchdog.
+ */
 class WatchdogClass {
 public:
     /**

@@ -189,6 +189,9 @@ int hal_watchdog_get_info(hal_watchdog_instance_t instance, hal_watchdog_info_t*
     WatchdogLock lk();
     auto pInstance = getWatchdogInstance(instance);
     CHECK_TRUE(pInstance, SYSTEM_ERROR_NOT_FOUND);
+    // Update info.running according to the status register.
+    // The System.reset() will reset the info, but not the watchdog
+    pInstance->started();
     return pInstance->getInfo(info);
 }
 
