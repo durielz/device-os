@@ -185,6 +185,14 @@ private:
  *  - When device wakes up from the ultra-low power mode or stop mode, or restarts after System.reset(),
  *    the watchdog will continue running if the watchdog has started previously. Use Watchdog.started()
  *    to check the status of watchdog.
+ * 
+ * For RTL872x-based platforms,
+ *  - Either interrupt mode or reset mode can be enabled at the same time. @ref WatchdogConfiguration::hardReset().
+ *  - The watchdog keeps running when expires when the watchdog is configured as interrupt mode, unless it is stopped explicitly.
+ *  - When device wakes up from the hibernate mode, the watchdog won't restart automatically.
+ *  - When device wakes up from the ultra-low power mode or stop mode, the watchdog will continue running if
+ *    the watchdog has started previously. Use Watchdog.started() to check the status of watchdog.
+ *  - System.reset() will reset the watchdog.
  */
 class WatchdogClass {
 public:

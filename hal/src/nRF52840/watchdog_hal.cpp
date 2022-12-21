@@ -64,6 +64,8 @@ public:
     int init(const hal_watchdog_config_t* config) {
         CHECK_FALSE(initialized_, SYSTEM_ERROR_INVALID_STATE);
         CHECK_TRUE(config && (config->size > 0), SYSTEM_ERROR_INVALID_ARGUMENT);
+        CHECK_TRUE(config->timeout_ms >= minTimeout(), SYSTEM_ERROR_INVALID_ARGUMENT);
+        CHECK_TRUE(config->timeout_ms <= maxTimeout(), SYSTEM_ERROR_INVALID_ARGUMENT);
 
         nrfx_wdt_config_t nrfConfig = {
             .behaviour          = NRF_WDT_BEHAVIOUR_PAUSE_SLEEP_HALT, // WDT will be paused when CPU is in SLEEP or HALT mode.
@@ -108,7 +110,7 @@ public:
     }
 
     static Nrf52Watchdog* instance() {
-        static Nrf52Watchdog watchdog(WATCHDOG_CAPS_INT, timeoutMs(0), timeoutMs(0xFFFFFFFE));
+        static Nrf52Watchdog watchdog(WATCHDOG_CAPS_INT, minTimeout(), maxTimeout());
         return &watchdog;
     }
 
@@ -120,8 +122,12 @@ private:
 
     ~Nrf52Watchdog() = default;
 
-    static uint32_t timeoutMs(uint32_t crv) {
-        return (uint32_t)((crv + 1) / (float)32.768);
+    static uint32_t minTimeout() {
+        return (uint32_t)(1 / (float)32.768);
+    }
+
+    static uint32_t maxTimeout() {
+        return (uint32_t)(0xFFFFFFFF / (float)32.768);
     }
 
     static void nrf52WatchdogEventHandler() {

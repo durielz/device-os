@@ -41,6 +41,7 @@ typedef enum hal_watchdog_capability_t {
     WATCHDOG_CAPS_RECONFIGURABLE    = 0x04,
     WATCHDOG_CAPS_STOPPABLE         = 0x08,
     WATCHDOG_CAPS_ALL               = 0xFFFFFFFF
+    // halt in sleep/debug mode?
 } hal_watchdog_capability_t;
 
 typedef struct hal_watchdog_config_t {
