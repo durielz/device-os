@@ -113,16 +113,20 @@ inline void application_checkin() {  }
 
 #include "watchdog_hal.h"
 #include "enumflags.h"
+#include "enumclass.h"
 
 namespace particle {
 
 enum class WatchdogCaps : uint32_t {
-    NONE            = WATCHDOG_CAPS_NONE,
-    SOFT_RESET      = WATCHDOG_CAPS_SOFT_RESET,         /** The watchdog can be configured to not hard resetting device on expired. */
-    INT             = WATCHDOG_CAPS_INT,                /** The watchdog can generate an interrupt on expired. */
-    RECONFIGURABLE  = WATCHDOG_CAPS_RECONFIGURABLE,     /** The watchdog can be re-configured after started. */
-    STOPPABLE       = WATCHDOG_CAPS_STOPPABLE,          /** The watchdog can be stopped after started. */
-    ALL             = WATCHDOG_CAPS_ALL
+    NONE            = HAL_WATCHDOG_CAPS_NONE,
+    RESET           = HAL_WATCHDOG_CAPS_RESET,              /** The watchdog can be configured to not hard resetting device on expired. */
+    NOTIFY          = HAL_WATCHDOG_CAPS_NOTIFY,             /** The watchdog can generate an interrupt on expired. */
+    NOTIFY_ONLY     = HAL_WATCHDOG_CAPS_NOTIFY_ONLY,        /** The watchdog can generate an interrupt on expired without resetting the device. */
+    RECONFIGURABLE  = HAL_WATCHDOG_CAPS_RECONFIGURABLE,     /** The watchdog can be re-configured after started. */
+    STOPPABLE       = HAL_WATCHDOG_CAPS_STOPPABLE,          /** The watchdog can be stopped after started. */
+    SLEEP_PAUSED    = HAL_WATCHDOG_CAPS_SLEEP_PAUSED,       /** The watchdog will be paused in sleep mode. */
+    DEBUG_PAUSED    = HAL_WATCHDOG_CAPS_DEBUG_PAUSED,       /** The watchdog will be paused in debug mode. */
+    ALL             = HAL_WATCHDOG_CAPS_ALL
 };
 ENABLE_ENUM_CLASS_BITWISE(WatchdogCaps);
 
@@ -143,8 +147,7 @@ public:
             : config_() {
         config_.size = sizeof(hal_watchdog_config_t);
         config_.version = HAL_WATCHDOG_VERSION;
-        config_.timeout_ms = WATCHDOG_DEFAULT_TIMEOUT_MS;
-        config_.hard_reset = true;
+        config_.capabilities = HAL_WATCHDOG_CAPS_RESET;
     }
 
     ~WatchdogConfiguration() = default;
@@ -158,8 +161,8 @@ public:
         return timeout(ms.count());
     }
 
-    WatchdogConfiguration& hardReset(bool val = true) {
-        config_.hard_reset = val;
+    WatchdogConfiguration& capabilities(WatchdogCaps caps) {
+        config_.capabilities = to_underlying<WatchdogCaps>(caps);
         return *this;
     }
 
@@ -187,7 +190,7 @@ private:
  *    to check the status of watchdog.
  * 
  * For RTL872x-based platforms,
- *  - Either interrupt mode or reset mode can be enabled at the same time. @ref WatchdogConfiguration::hardReset().
+ *  - Either interrupt mode or reset mode can be enabled at the same time.
  *  - The watchdog keeps running when expires when the watchdog is configured as interrupt mode, unless it is stopped explicitly.
  *  - When device wakes up from the hibernate mode, the watchdog won't restart automatically.
  *  - When device wakes up from the ultra-low power mode or stop mode, the watchdog will continue running if
@@ -224,7 +227,7 @@ public:
     /**
      * @brief Stop the hardware watchdog.
      * 
-     * @note Some hardware watchdog don't support stopping once started. @ref WatchdogCaps::WATCHDOG_CAPS_STOPPABLE
+     * @note Some hardware watchdog don't support stopping once started. @ref WatchdogCaps::HAL_WATCHDOG_CAPS_STOPPABLE
      * 
      * @return SYSTEM_ERROR_NONE if succeeded, otherwise failed.
      */

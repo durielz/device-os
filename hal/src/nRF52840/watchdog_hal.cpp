@@ -16,6 +16,7 @@
  */
 
 #include "watchdog_hal.h"
+#include "watchdog_base.h"
 
 #if HAL_PLATFORM_HW_WATCHDOG
 #include "check.h"
@@ -64,8 +65,8 @@ public:
     int init(const hal_watchdog_config_t* config) {
         CHECK_FALSE(initialized_, SYSTEM_ERROR_INVALID_STATE);
         CHECK_TRUE(config && (config->size > 0), SYSTEM_ERROR_INVALID_ARGUMENT);
-        CHECK_TRUE(config->timeout_ms >= minTimeout(), SYSTEM_ERROR_INVALID_ARGUMENT);
-        CHECK_TRUE(config->timeout_ms <= maxTimeout(), SYSTEM_ERROR_INVALID_ARGUMENT);
+        CHECK_TRUE(config->timeout_ms >= WATCHDOG_MIN_TIMEOUT, SYSTEM_ERROR_INVALID_ARGUMENT);
+        CHECK_TRUE(config->timeout_ms <= WATCHDOG_MAX_TIMEOUT, SYSTEM_ERROR_INVALID_ARGUMENT);
 
         nrfx_wdt_config_t nrfConfig = {
             .behaviour          = NRF_WDT_BEHAVIOUR_PAUSE_SLEEP_HALT, // WDT will be paused when CPU is in SLEEP or HALT mode.
@@ -77,7 +78,7 @@ public:
         ret = nrfx_wdt_channel_alloc(&channelId_);
         SPARK_ASSERT(ret == NRF_SUCCESS);
 
-        memcpy(&config_, config, std::min(config_.size, config->size));
+        memcpy(&info_.config, config, std::min(info_.config.size, config->size));
         initialized_ = true;
         return SYSTEM_ERROR_NONE;
     }
@@ -91,8 +92,10 @@ public:
     }
 
     bool started() override {
-        info_.running = nrf_wdt_started();
-        return info_.running;
+        if (nrf_wdt_started()) {
+            info_.state = HAL_WATCHDOG_STATE_STARTED;
+        }
+        return info_.state == HAL_WATCHDOG_STATE_STARTED;
     }
 
     int refresh() {
@@ -110,7 +113,9 @@ public:
     }
 
     static Nrf52Watchdog* instance() {
-        static Nrf52Watchdog watchdog(WATCHDOG_CAPS_INT, minTimeout(), maxTimeout());
+        static Nrf52Watchdog watchdog(HAL_WATCHDOG_CAPS_RESET | HAL_WATCHDOG_CAPS_NOTIFY |
+                                      HAL_WATCHDOG_CAPS_SLEEP_PAUSED | HAL_WATCHDOG_CAPS_DEBUG_PAUSED,
+                                      WATCHDOG_MIN_TIMEOUT, WATCHDOG_MAX_TIMEOUT);
         return &watchdog;
     }
 
@@ -121,14 +126,6 @@ private:
     }
 
     ~Nrf52Watchdog() = default;
-
-    static uint32_t minTimeout() {
-        return (uint32_t)(1 / (float)32.768);
-    }
-
-    static uint32_t maxTimeout() {
-        return (uint32_t)(0xFFFFFFFF / (float)32.768);
-    }
 
     static void nrf52WatchdogEventHandler() {
         // NOTE: The max amount of time we can spend in WDT interrupt is two cycles of 32768[Hz] clock - after that, reset occurs
@@ -142,6 +139,8 @@ private:
     volatile bool initialized_;
     nrfx_wdt_channel_id channelId_;
     static constexpr uint8_t NRF52_WATCHDOG_PRIORITY = 7;
+    static constexpr uint32_t WATCHDOG_MIN_TIMEOUT = 0;
+    static constexpr uint32_t WATCHDOG_MAX_TIMEOUT = 131071999; // 0xFFFFFFFF / 32.768
 };
 
 static Watchdog* getWatchdogInstance(hal_watchdog_instance_t instance) {
@@ -195,7 +194,7 @@ int hal_watchdog_get_info(hal_watchdog_instance_t instance, hal_watchdog_info_t*
     WatchdogLock lk();
     auto pInstance = getWatchdogInstance(instance);
     CHECK_TRUE(pInstance, SYSTEM_ERROR_NOT_FOUND);
-    // Update info.running according to the status register.
+    // Update info.state according to the status register.
     // The System.reset() will reset the info, but not the watchdog
     pInstance->started();
     return pInstance->getInfo(info);

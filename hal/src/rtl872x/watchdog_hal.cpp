@@ -16,6 +16,7 @@
  */
 
 #include "watchdog_hal.h"
+#include "watchdog_base.h"
 
 #if HAL_PLATFORM_HW_WATCHDOG
 #include "check.h"
@@ -55,8 +56,8 @@ public:
         }
 
         CHECK_TRUE(config && (config->size > 0), SYSTEM_ERROR_INVALID_ARGUMENT);
-        CHECK_TRUE(config->timeout_ms >= minTimeout(), SYSTEM_ERROR_INVALID_ARGUMENT);
-        CHECK_TRUE(config->timeout_ms <= maxTimeout(), SYSTEM_ERROR_INVALID_ARGUMENT);
+        CHECK_TRUE(config->timeout_ms >= WATCHDOG_MIN_TIMEOUT, SYSTEM_ERROR_INVALID_ARGUMENT);
+        CHECK_TRUE(config->timeout_ms <= WATCHDOG_MAX_TIMEOUT, SYSTEM_ERROR_INVALID_ARGUMENT);
 
         WDG_InitTypeDef WDG_InitStruct = {};
         uint32_t CountProcess = 0;
@@ -64,16 +65,16 @@ public:
         WDG_Scalar(config->timeout_ms, &CountProcess, &DivFacProcess);
         WDG_InitStruct.CountProcess = CountProcess;
         WDG_InitStruct.DivFacProcess = DivFacProcess;
-        WDG_InitStruct.RstAllPERI = 0;
+        WDG_InitStruct.RstAllPERI = 1;
         WDG_Init(&WDG_InitStruct);
-        if (config->hard_reset) {
+        if (config->capabilities & HAL_WATCHDOG_CAPS_RESET) {
             BKUP_Set(BKUP_REG0, BIT_KM4SYS_RESET_HAPPEN);
         } else {
             // It will change the watchdog to INT mode.
             WDG_IrqInit((void*)rtlWatchdogEventHandler, (uint32_t)this);
         }
         
-        memcpy(&config_, config, std::min(config_.size, config->size));
+        memcpy(&info_.config, config, std::min(info_.config.size, config->size));
         initialized_ = true;
         return SYSTEM_ERROR_NONE;
     }
@@ -89,8 +90,10 @@ public:
     bool started() override {
         WDG_TypeDef* WDG = ((WDG_TypeDef *) WDG_REG_BASE);
         uint32_t temp = WDG->VENDOR;
-        info_.running = ((temp & WDG_BIT_ENABLE) ? true : false);
-        return info_.running;
+        if (temp & WDG_BIT_ENABLE) {
+            info_.state = HAL_WATCHDOG_STATE_STARTED;
+        }
+        return info_.state == HAL_WATCHDOG_STATE_STARTED;
     }
 
     int stop() override {
@@ -114,7 +117,9 @@ public:
     }
 
     static RtlWatchdog* instance() {
-        static RtlWatchdog watchdog(WATCHDOG_CAPS_ALL, minTimeout(), maxTimeout());
+        static RtlWatchdog watchdog(HAL_WATCHDOG_CAPS_RESET | HAL_WATCHDOG_CAPS_NOTIFY_ONLY |
+                                    HAL_WATCHDOG_CAPS_RECONFIGURABLE | HAL_WATCHDOG_CAPS_STOPPABLE | HAL_WATCHDOG_CAPS_SLEEP_PAUSED, 
+                                    WATCHDOG_MIN_TIMEOUT, WATCHDOG_MAX_TIMEOUT);
         return &watchdog;
     }
 
@@ -126,16 +131,6 @@ private:
 
     ~RtlWatchdog() = default;
 
-    // timeout = (1 / ((float)32.768 / (div + 1))) * count;
-    // Minimum allowed div is 1.
-    static uint32_t minTimeout() {
-        return (1 / ((float)32.768 / 2));
-    }
-
-    static uint32_t maxTimeout() {
-        return (1 / ((float)32.768 / 65536)) * 0xFFF;
-    }
-
     static void rtlWatchdogEventHandler(void* context) {
         WDG_IrqClear();
         auto pInstance = (RtlWatchdog*)context;
@@ -146,6 +141,11 @@ private:
     }
 
     volatile bool initialized_;
+
+    // timeout = (1 / ((float)32.768 / (div + 1))) * count;
+    // Minimum allowed div is 1.
+    static constexpr uint32_t WATCHDOG_MIN_TIMEOUT = 0;
+    static constexpr uint32_t WATCHDOG_MAX_TIMEOUT = 8190000;
 };
 
 static Watchdog* getWatchdogInstance(hal_watchdog_instance_t instance) {
@@ -199,7 +199,7 @@ int hal_watchdog_get_info(hal_watchdog_instance_t instance, hal_watchdog_info_t*
     WatchdogLock lk();
     auto pInstance = getWatchdogInstance(instance);
     CHECK_TRUE(pInstance, SYSTEM_ERROR_NOT_FOUND);
-    // Update info.running according to the status register.
+    // Update info.state according to the status register.
     pInstance->started();
     return pInstance->getInfo(info);
 }

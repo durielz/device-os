@@ -91,23 +91,6 @@ DYNALIB_FN(40, hal_core, hal_get_device_secret, int(char*, size_t, void*))
 DYNALIB_FN(41, hal_core, hal_set_device_secret, int(char*, size_t, void*))
 DYNALIB_FN(42, hal_core, hal_get_device_hw_info, int(hal_device_hw_info*, void*))
 
-#define BASE_IDX 43
-
-#if HAL_PLATFORM_HW_WATCHDOG
-DYNALIB_FN(BASE_IDX + 0, hal_core, hal_watchdog_set_config, int(hal_watchdog_instance_t, const hal_watchdog_config_t*, void*))
-DYNALIB_FN(BASE_IDX + 1, hal_core, hal_watchdog_on_expired_callback, int(hal_watchdog_instance_t, hal_watchdog_on_expired_callback_t, void*, void*))
-DYNALIB_FN(BASE_IDX + 2, hal_core, hal_watchdog_start, int(hal_watchdog_instance_t, void*))
-DYNALIB_FN(BASE_IDX + 3, hal_core, hal_watchdog_stop, int(hal_watchdog_instance_t, void*))
-DYNALIB_FN(BASE_IDX + 4, hal_core, hal_watchdog_refresh, int(hal_watchdog_instance_t, void*))
-DYNALIB_FN(BASE_IDX + 5, hal_core, hal_watchdog_get_info, int(hal_watchdog_instance_t, hal_watchdog_info_t*, void*))
-#define BASE_IDX1 (BASE_IDX + 6)
-#else
-#define BASE_IDX1 (BASE_IDX + 0)
-#endif // HAL_PLATFORM_HW_WATCHDOG
-
-#undef BASE_IDX
-#undef BASE_IDX1
-
 DYNALIB_END(hal_core)
 
 #endif	/* HAL_DYNALIB_CORE_H */

@@ -19,18 +19,21 @@ void onWatchdogExpiredHandlerFunc(void* context) {
 test(watchdog_caps) {
     API_COMPILE({
         EnumFlags<WatchdogCaps> caps = WatchdogCaps::NONE |
-                                       WatchdogCaps::SOFT_RESET |
-                                       WatchdogCaps::INT |
+                                       WatchdogCaps::RESET |
+                                       WatchdogCaps::NOTIFY |
+                                       WatchdogCaps::NOTIFY_ONLY |
                                        WatchdogCaps::RECONFIGURABLE |
                                        WatchdogCaps::STOPPABLE |
+                                       WatchdogCaps::SLEEP_PAUSED |
+                                       WatchdogCaps::DEBUG_PAUSED |
                                        WatchdogCaps::ALL;
         (void)caps;
     });
 }
 
 test(watchdog_configuration_class) {
-    API_COMPILE(WatchdogConfiguration().timeout(1234).hardReset(true));
-    API_COMPILE(WatchdogConfiguration().timeout(10s).hardReset(true));
+    API_COMPILE(WatchdogConfiguration().timeout(1234).capabilities(WatchdogCaps::RESET));
+    API_COMPILE(WatchdogConfiguration().timeout(10s).capabilities(WatchdogCaps::RESET));
 }
 
 test(watchdog_class) {

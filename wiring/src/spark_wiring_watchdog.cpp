@@ -37,7 +37,7 @@ int WatchdogClass::start() {
 bool WatchdogClass::started() {
     WatchdogInfo info;
     CHECK_RETURN(hal_watchdog_get_info(instance_, &info, nullptr), false);
-    return info.running;
+    return info.state == HAL_WATCHDOG_STATE_STARTED;
 }
 
 int WatchdogClass::stop() {
