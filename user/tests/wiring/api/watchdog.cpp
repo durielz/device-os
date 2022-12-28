@@ -24,8 +24,8 @@ test(watchdog_caps) {
                                        WatchdogCaps::NOTIFY_ONLY |
                                        WatchdogCaps::RECONFIGURABLE |
                                        WatchdogCaps::STOPPABLE |
-                                       WatchdogCaps::SLEEP_PAUSED |
-                                       WatchdogCaps::DEBUG_PAUSED |
+                                       WatchdogCaps::SLEEP_RUNNING |
+                                       WatchdogCaps::DEBUG_RUNNING |
                                        WatchdogCaps::ALL;
         (void)caps;
     });

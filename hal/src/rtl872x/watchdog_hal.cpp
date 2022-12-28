@@ -67,7 +67,7 @@ public:
         WDG_InitStruct.DivFacProcess = DivFacProcess;
         WDG_InitStruct.RstAllPERI = 1;
         WDG_Init(&WDG_InitStruct);
-        if (config->capabilities & HAL_WATCHDOG_CAPS_RESET) {
+        if (config->enable_caps & HAL_WATCHDOG_CAPS_RESET) {
             BKUP_Set(BKUP_REG0, BIT_KM4SYS_RESET_HAPPEN);
         } else {
             // It will change the watchdog to INT mode.
@@ -110,22 +110,17 @@ public:
         return SYSTEM_ERROR_NONE;
     }
 
-    int setOnExpiredCallback(hal_watchdog_on_expired_callback_t callback, void* context) override {
-        callback_ = callback;
-        context_ = context;
-        return SYSTEM_ERROR_NONE;
-    }
-
     static RtlWatchdog* instance() {
-        static RtlWatchdog watchdog(HAL_WATCHDOG_CAPS_RESET | HAL_WATCHDOG_CAPS_NOTIFY_ONLY |
-                                    HAL_WATCHDOG_CAPS_RECONFIGURABLE | HAL_WATCHDOG_CAPS_STOPPABLE | HAL_WATCHDOG_CAPS_SLEEP_PAUSED, 
+        static RtlWatchdog watchdog(HAL_WATCHDOG_CAPS_DEBUG_RUNNING,
+                                    HAL_WATCHDOG_CAPS_RESET | HAL_WATCHDOG_CAPS_NOTIFY_ONLY |
+                                    HAL_WATCHDOG_CAPS_RECONFIGURABLE | HAL_WATCHDOG_CAPS_STOPPABLE,
                                     WATCHDOG_MIN_TIMEOUT, WATCHDOG_MAX_TIMEOUT);
         return &watchdog;
     }
 
 private:
-    RtlWatchdog(uint32_t capabilities, uint32_t minTimeout, uint32_t maxTimeout)
-            : Watchdog(capabilities, minTimeout, maxTimeout),
+    RtlWatchdog(uint32_t mandatoryCaps, uint32_t optionalCaps, uint32_t minTimeout, uint32_t maxTimeout)
+            : Watchdog(mandatoryCaps, optionalCaps, minTimeout, maxTimeout),
               initialized_(false) {
     }
 

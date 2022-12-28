@@ -42,8 +42,8 @@ typedef enum hal_watchdog_capability_t {
     HAL_WATCHDOG_CAPS_NOTIFY_ONLY       = 0x04,
     HAL_WATCHDOG_CAPS_RECONFIGURABLE    = 0x08,
     HAL_WATCHDOG_CAPS_STOPPABLE         = 0x10,
-    HAL_WATCHDOG_CAPS_SLEEP_PAUSED      = 0x20,
-    HAL_WATCHDOG_CAPS_DEBUG_PAUSED      = 0x40,
+    HAL_WATCHDOG_CAPS_SLEEP_RUNNING     = 0x20,
+    HAL_WATCHDOG_CAPS_DEBUG_RUNNING     = 0x40,
     HAL_WATCHDOG_CAPS_ALL               = 0xFFFFFFFF
 } hal_watchdog_capability_t;
 
@@ -59,13 +59,14 @@ typedef struct hal_watchdog_config_t {
     uint16_t                            size;
     uint16_t                            version;
     system_tick_t                       timeout_ms;
-    uint32_t                            capabilities;
+    uint32_t                            enable_caps;
 } hal_watchdog_config_t;
 
 typedef struct hal_watchdog_info_t {
     uint16_t                    size;
     uint16_t                    version;
-    uint32_t                    capabilities;
+    uint32_t                    mandatory_caps;
+    uint32_t                    optional_caps;
     hal_watchdog_config_t       config;
     system_tick_t               min_timeout_ms;
     system_tick_t               max_timeout_ms;

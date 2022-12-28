@@ -561,6 +561,9 @@ bool HAL_Core_System_Reset_FlagSet(RESET_TypeDef resetType) {
     reset_reason = BOOT_Reason();
     switch(resetType) {
         case SOFTWARE_RESET: {
+            if (BKUP_Read(BKUP_REG1) != 0xdeadbeef) {
+                return false;
+            }
             return (reset_reason & (BIT_BOOT_KM4SYS_RESET_HAPPEN | BIT_BOOT_SYS_RESET_HAPPEN));
         }
         case WATCHDOG_RESET: {
@@ -596,11 +599,6 @@ static void Init_Last_Reset_Info()
         // Clear backup registers
         HAL_Core_Write_Backup_Register(BKP_DR_02, 0);
         HAL_Core_Write_Backup_Register(BKP_DR_03, 0);
-
-        // FIXME: System.reset() is currently using watchdog to reset device.
-        if (last_reset_info.reason == 0 && HAL_Core_System_Reset_FlagSet(WATCHDOG_RESET)) {
-            last_reset_info.reason = RESET_REASON_WATCHDOG;
-        }
     }
     else // Hardware reset
     {

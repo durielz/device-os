@@ -73,6 +73,14 @@ public:
             .reload_value       = config->timeout_ms,
             .interrupt_priority = NRF52_WATCHDOG_PRIORITY,
         };
+        if ((config->enable_caps & HAL_WATCHDOG_CAPS_SLEEP_RUNNING) && (config->enable_caps & HAL_WATCHDOG_CAPS_DEBUG_RUNNING)) {
+            nrfConfig.behaviour = NRF_WDT_BEHAVIOUR_RUN_SLEEP_HALT;
+            LOG(TRACE, "RUN in sleep halt");
+        } else if (config->enable_caps & HAL_WATCHDOG_CAPS_SLEEP_RUNNING) {
+            nrfConfig.behaviour = NRF_WDT_BEHAVIOUR_RUN_SLEEP;
+        } else if (config->enable_caps & HAL_WATCHDOG_CAPS_DEBUG_RUNNING) {
+            nrfConfig.behaviour = NRF_WDT_BEHAVIOUR_RUN_HALT;
+        }
         nrfx_err_t ret = nrfx_wdt_init(&nrfConfig, nrf52WatchdogEventHandler);
         SPARK_ASSERT(ret == NRF_SUCCESS);
         ret = nrfx_wdt_channel_alloc(&channelId_);
@@ -105,23 +113,16 @@ public:
         return SYSTEM_ERROR_NONE;
     }
 
-    int setOnExpiredCallback(hal_watchdog_on_expired_callback_t callback, void* context) override {
-        // NOTE: The max amount of time we can spend in WDT interrupt is two cycles of 32768[Hz] clock - after that, reset occurs
-        callback_ = callback;
-        context_ = context;
-        return SYSTEM_ERROR_NONE;
-    }
-
     static Nrf52Watchdog* instance() {
-        static Nrf52Watchdog watchdog(HAL_WATCHDOG_CAPS_RESET | HAL_WATCHDOG_CAPS_NOTIFY |
-                                      HAL_WATCHDOG_CAPS_SLEEP_PAUSED | HAL_WATCHDOG_CAPS_DEBUG_PAUSED,
+        static Nrf52Watchdog watchdog(HAL_WATCHDOG_CAPS_RESET,
+                                      HAL_WATCHDOG_CAPS_NOTIFY | HAL_WATCHDOG_CAPS_SLEEP_RUNNING | HAL_WATCHDOG_CAPS_DEBUG_RUNNING,
                                       WATCHDOG_MIN_TIMEOUT, WATCHDOG_MAX_TIMEOUT);
         return &watchdog;
     }
 
 private:
-    Nrf52Watchdog(uint32_t capabilities, uint32_t minTimeout, uint32_t maxTimeout)
-            : Watchdog(capabilities, minTimeout, maxTimeout),
+    Nrf52Watchdog(uint32_t mandatoryCaps, uint32_t optionalCaps, uint32_t minTimeout, uint32_t maxTimeout)
+            : Watchdog(mandatoryCaps, optionalCaps, minTimeout, maxTimeout),
               initialized_(false) {
     }
 
@@ -133,7 +134,9 @@ private:
         if (!pInstance) {
             return;
         }
-        pInstance->notify();
+        if (pInstance->info_.config.enable_caps & HAL_WATCHDOG_CAPS_NOTIFY) {
+            pInstance->notify();
+        }
     }
 
     volatile bool initialized_;

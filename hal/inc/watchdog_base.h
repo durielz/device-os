@@ -25,7 +25,7 @@
 
 class Watchdog {
 public:
-    Watchdog(uint32_t capabilities, uint32_t minTimeout, uint32_t maxTimeout)
+    Watchdog(uint32_t mandatoryCaps, uint32_t optionalCaps, uint32_t minTimeout, uint32_t maxTimeout)
             : info_{},
               callback_(nullptr),
               context_(nullptr) {
@@ -34,7 +34,8 @@ public:
 
         info_.size = sizeof(hal_watchdog_info_t);
         info_.version = HAL_WATCHDOG_VERSION;
-        info_.capabilities = capabilities;
+        info_.mandatory_caps = mandatoryCaps;
+        info_.optional_caps = optionalCaps;
         info_.min_timeout_ms = minTimeout;
         info_.max_timeout_ms = maxTimeout;
         info_.state = HAL_WATCHDOG_STATE_DISABLED;
@@ -63,7 +64,9 @@ public:
     }
 
     virtual int setOnExpiredCallback(hal_watchdog_on_expired_callback_t callback, void* context) {
-        return SYSTEM_ERROR_NOT_SUPPORTED;
+        callback_ = callback;
+        context_ = context;
+        return SYSTEM_ERROR_NONE;
     }
 
     virtual int init(const hal_watchdog_config_t* config) = 0;

@@ -124,8 +124,8 @@ enum class WatchdogCaps : uint32_t {
     NOTIFY_ONLY     = HAL_WATCHDOG_CAPS_NOTIFY_ONLY,        /** The watchdog can generate an interrupt on expired without resetting the device. */
     RECONFIGURABLE  = HAL_WATCHDOG_CAPS_RECONFIGURABLE,     /** The watchdog can be re-configured after started. */
     STOPPABLE       = HAL_WATCHDOG_CAPS_STOPPABLE,          /** The watchdog can be stopped after started. */
-    SLEEP_PAUSED    = HAL_WATCHDOG_CAPS_SLEEP_PAUSED,       /** The watchdog will be paused in sleep mode. */
-    DEBUG_PAUSED    = HAL_WATCHDOG_CAPS_DEBUG_PAUSED,       /** The watchdog will be paused in debug mode. */
+    SLEEP_RUNNING   = HAL_WATCHDOG_CAPS_SLEEP_RUNNING,       /** The watchdog will be paused in sleep mode. */
+    DEBUG_RUNNING   = HAL_WATCHDOG_CAPS_DEBUG_RUNNING,       /** The watchdog will be paused in debug mode. */
     ALL             = HAL_WATCHDOG_CAPS_ALL
 };
 ENABLE_ENUM_CLASS_BITWISE(WatchdogCaps);
@@ -147,7 +147,7 @@ public:
             : config_() {
         config_.size = sizeof(hal_watchdog_config_t);
         config_.version = HAL_WATCHDOG_VERSION;
-        config_.capabilities = HAL_WATCHDOG_CAPS_RESET;
+        config_.enable_caps = HAL_WATCHDOG_CAPS_RESET;
     }
 
     ~WatchdogConfiguration() = default;
@@ -162,7 +162,7 @@ public:
     }
 
     WatchdogConfiguration& capabilities(WatchdogCaps caps) {
-        config_.capabilities = to_underlying<WatchdogCaps>(caps);
+        config_.enable_caps = to_underlying<WatchdogCaps>(caps);
         return *this;
     }
 
@@ -183,7 +183,7 @@ private:
 
 /**
  * @note For nRF52-based platforms,
- *  - the watchdog will be paused during sleep mode and debug mode.
+ *  - the watchdog will be paused during hibernate mode.
  *  - When device wakes up from the hibernate mode, the watchdog won't restart automatically.
  *  - When device wakes up from the ultra-low power mode or stop mode, or restarts after System.reset(),
  *    the watchdog will continue running if the watchdog has started previously. Use Watchdog.started()
